@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>범위 줄이기 · 3주차 놀이 3</title>
+<style>
+  :root{
+    --ink:#12222F; --ink2:#4B5D6C; --paper:#EEF3F7; --card:#FFFFFF;
+    --line:#D2DDE6; --live:#008FD5; --deep:#1B3A5C; --gone:#DBE3EA;
+    --hit:#6C318F; --seq:#9AA7B2; --warm:#A85E1B;
+    --radius:10px;
+  }
+  :root:not([data-theme="light"]){ color-scheme: light; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#E6EEF5; --ink2:#9DB0C0; --paper:#0D1821; --card:#14232E;
+      --line:#27394A; --gone:#20313E; --seq:#5D707E; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#E6EEF5; --ink2:#9DB0C0; --paper:#0D1821; --card:#14232E;
+    --line:#27394A; --gone:#20313E; --seq:#5D707E; color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic","맑은 고딕",sans-serif;
+    font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:28px 18px 64px}
+
+  header h1{
+    font-size:clamp(26px,5vw,38px); font-weight:800; letter-spacing:-.02em;
+    margin:0 0 6px; color:var(--deep);
+  }
+  header p{margin:0 0 22px; color:var(--ink2); max-width:62ch}
+
+  .tabs{display:flex; border-bottom:2px solid var(--line); margin-bottom:24px; flex-wrap:wrap}
+  .tab{margin-right:6px; 
+    appearance:none; border:none; background:none; cursor:pointer;
+    font:inherit; font-weight:700; color:var(--ink2);
+    padding:10px 14px; border-radius:8px 8px 0 0; position:relative; bottom:-2px;
+    border-bottom:2px solid transparent;
+  }
+  .tab[aria-selected="true"]{color:var(--live); border-bottom-color:var(--live)}
+  .tab:focus-visible{outline:2px solid var(--live); outline-offset:2px}
+
+  .panel[hidden]{display:none}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px}
+  .card + .card{margin-top:16px}
+
+  /* ── 격자 ── */
+  .field{margin:2px 0 16px; font-size:0; line-height:0}
+  .cell{
+    display:inline-block; width:9.2%; margin:0.4%;
+    padding:9px 0; border-radius:4px; background:var(--live);
+    text-align:center; font-size:12px; line-height:1.1;
+    font-weight:700; color:#fff; font-variant-numeric:tabular-nums;
+    transition:background-color .28s ease, transform .28s ease;
+  }
+  @media (max-width:520px){ .cell{padding:6px 0; font-size:10px} }
+  .cell.gone{background:var(--gone); color:transparent; transform:scale(.82)}
+  .cell.mid{background:var(--deep); outline:2px solid var(--live); outline-offset:1px}
+  .cell.hit{background:var(--hit); transform:scale(1.12)}
+  @media (prefers-reduced-motion:reduce){ .cell{transition:none} }
+
+  .status{
+    display:flex; flex-wrap:wrap; align-items:baseline;
+    padding:12px 0 16px; border-top:1px solid var(--line);
+  }
+  .stat{margin:0 30px 8px 0}
+  .stat b{display:block; font-size:12px; font-weight:700; color:var(--ink2)}
+  .stat span{font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+
+  .row{display:flex; flex-wrap:wrap; align-items:center; margin-bottom:-8px}
+  .row > *{margin:0 8px 8px 0}
+  input[type=number]{
+    font:inherit; font-weight:700; font-variant-numeric:tabular-nums;
+    width:110px; padding:10px 12px; border:1.5px solid var(--line);
+    border-radius:8px; background:var(--card); color:var(--ink);
+  }
+  input[type=number]:focus{outline:2px solid var(--live); outline-offset:1px; border-color:var(--live)}
+  button.act{
+    font:inherit; font-weight:700; cursor:pointer;
+    padding:10px 16px; border-radius:8px; border:1.5px solid var(--deep);
+    background:var(--deep); color:#fff;
+  }
+  button.ghost{background:transparent; color:var(--deep); border-color:var(--line)}
+  :root[data-theme="dark"] button.ghost{color:var(--ink)}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]) button.ghost{color:var(--ink)}
+  }
+  button.act:disabled{opacity:.4; cursor:not-allowed}
+  button.act:focus-visible{outline:2px solid var(--live); outline-offset:2px}
+
+  .msg{margin:14px 0 0; padding:12px 14px; border-radius:8px; background:var(--paper); border:1px solid var(--line)}
+  .msg strong{color:var(--live)}
+  .msg.win{border-color:var(--hit)}
+  .msg.win strong{color:var(--hit)}
+
+  .log{margin:14px 0 0; padding:0; list-style:none; font-variant-numeric:tabular-nums; font-size:14px}
+  .log li{display:flex; padding:5px 0; border-bottom:1px dashed var(--line)}
+  .log li span:first-child{width:2.4em; margin-right:10px; color:var(--ink2)}
+  .log li b{width:4.6em; margin-right:10px}
+
+  /* ── 비교 ── */
+  .bars{margin:8px 0 0}
+  .bar-row{padding:12px 0; border-bottom:1px solid var(--line)}
+  .bar-row:last-child{border-bottom:none}
+  .bar-head{display:flex; justify-content:space-between; font-weight:700; margin-bottom:8px}
+  .bar-head em{font-style:normal; color:var(--ink2); font-weight:600; font-size:13px}
+  .track{height:14px; border-radius:7px; background:var(--gone); overflow:hidden; margin-bottom:6px}
+  .fill{height:100%; border-radius:7px; transition:width .5s ease}
+  .fill.seq{background:var(--seq)}
+  .fill.bin{background:var(--live)}
+  .legend{display:flex; flex-wrap:wrap; font-size:13px; color:var(--ink2); margin-top:4px}
+  .legend > span{margin-right:20px}
+  .legend i{display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+
+  .note{font-size:14px; color:var(--ink2); margin-top:14px}
+  h2{font-size:19px; margin:0 0 4px; letter-spacing:-.01em}
+  h2 + p{margin:0 0 16px; color:var(--ink2); font-size:14px}
+  footer{margin-top:34px; padding-top:18px; border-top:1px solid var(--line); font-size:14px; color:var(--ink2)}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>범위 줄이기</h1>
+  <p>1부터 100까지 중 하나를 찾습니다. 질문할 때마다 남은 후보가 어떻게 줄어드는지 눈으로 확인하는 페이지입니다. 3주차 놀이 3을 끝낸 뒤에 사용하세요.</p>
+</header>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" id="t0" aria-selected="true" aria-controls="p0">함께 보기</button>
+  <button class="tab" role="tab" id="t1" aria-selected="false" aria-controls="p1">혼자 연습</button>
+  <button class="tab" role="tab" id="t2" aria-selected="false" aria-controls="p2">범위를 키우면</button>
+</div>
+
+<!-- ── 모드 1 ───────────────────────────────── -->
+<section class="panel" id="p0" role="tabpanel" aria-labelledby="t0">
+  <div class="card">
+    <h2>함께 보기 — 범위 추적기</h2>
+    <p>정답은 학생이 갖고 있습니다. 부른 숫자를 입력하고 학생의 대답을 누르세요.</p>
+
+    <div class="field" id="field0"></div>
+
+    <div class="status">
+      <div class="stat"><b>남은 범위</b><span id="range0">1 ~ 100</span></div>
+      <div class="stat"><b>남은 후보</b><span id="left0">100</span></div>
+      <div class="stat"><b>질문 횟수</b><span id="count0">0</span></div>
+    </div>
+
+    <div class="row">
+      <input type="number" id="guess0" min="1" max="100" placeholder="숫자">
+      <button class="act ghost" id="mid0">가운데 부르기</button>
+      <button class="act" id="ask0">이 숫자를 불렀다</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="act ghost" id="up0" disabled>더 크다</button>
+      <button class="act ghost" id="dn0" disabled>더 작다</button>
+      <button class="act ghost" id="ok0" disabled>정답</button>
+      <button class="act ghost" id="rs0" style="margin-left:auto; margin-right:0">다시 시작</button>
+    </div>
+
+    <p class="msg" id="msg0">숫자를 입력하고 <strong>이 숫자를 불렀다</strong>를 누르세요.</p>
+    <ul class="log" id="log0"></ul>
+  </div>
+</section>
+
+<!-- ── 모드 2 ───────────────────────────────── -->
+<section class="panel" id="p1" role="tabpanel" aria-labelledby="t1" hidden>
+  <div class="card">
+    <h2>혼자 연습</h2>
+    <p>이 페이지가 1부터 100까지 중 하나를 정했습니다. 몇 번 만에 찾을 수 있습니까?</p>
+
+    <div class="field" id="field1"></div>
+
+    <div class="status">
+      <div class="stat"><b>남은 범위</b><span id="range1">1 ~ 100</span></div>
+      <div class="stat"><b>질문 횟수</b><span id="count1">0</span></div>
+      <div class="stat"><b>최소 횟수</b><span id="best1">—</span></div>
+    </div>
+
+    <div class="row">
+      <input type="number" id="guess1" min="1" max="100" placeholder="숫자">
+      <button class="act" id="ask1">부르기</button>
+      <button class="act ghost" id="rs1" style="margin-left:auto; margin-right:0">새 숫자</button>
+    </div>
+
+    <p class="msg" id="msg1">숫자를 입력하고 <strong>부르기</strong>를 누르세요.</p>
+    <ul class="log" id="log1"></ul>
+  </div>
+</section>
+
+<!-- ── 모드 3 ───────────────────────────────── -->
+<section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+  <div class="card">
+    <h2>범위를 키우면</h2>
+    <p>찾을 범위가 10배로 늘어날 때 두 방법이 각각 몇 번 만에 끝나는지 비교합니다. 최악의 경우 기준입니다.</p>
+
+    <div class="bars" id="bars"></div>
+
+    <div class="legend">
+      <span><i style="background:var(--seq)"></i>순차 탐색 — 1부터 하나씩</span>
+      <span><i style="background:var(--live)"></i>이진 탐색 — 가운데를 부르고 절반 버리기</span>
+    </div>
+
+    <p class="note">막대는 각 줄에서 순차 탐색을 가득 찬 길이로 두고 비교한 것입니다. 범위가 10배가 될 때 순차 탐색은 10배로 늘지만, 이진 탐색은 3~4번만 늘어납니다.</p>
+  </div>
+
+  <div class="card">
+    <h2>왜 이렇게 되나</h2>
+    <p>한 번 물을 때마다 남은 후보가 절반이 됩니다.</p>
+    <ul class="log" id="halves"></ul>
+    <p class="note">100에서 시작해 일곱 번이면 1이 됩니다. 그래서 최악의 경우가 7번입니다.</p>
+  </div>
+</section>
+
+<footer>
+  <b>수업 연계</b> — 이 페이지는 놀이 3이 끝난 뒤에 씁니다. 활동지 C-3의 1차·2차 기록을 옆에 두고 비교하세요.
+  마지막 질문 “범위가 1000이라면?”의 답은 <b>범위를 키우면</b> 탭에 있습니다.
+  <br>디지털활용과 창작 · 3주차 놀이를 통한 알고리즘과 컴퓨팅 사고력
+</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var N = 100;
+
+  /* ── 탭 ── */
+  var tabs = [document.getElementById('t0'),document.getElementById('t1'),document.getElementById('t2')];
+  var panels = [document.getElementById('p0'),document.getElementById('p1'),document.getElementById('p2')];
+  tabs.forEach(function(t,i){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x,j){
+        x.setAttribute('aria-selected', i===j ? 'true':'false');
+        panels[j].hidden = (i!==j);
+      });
+    });
+  });
+
+  /* ── 격자 ── */
+  function buildField(el){
+    var frag = document.createDocumentFragment();
+    for(var i=1;i<=N;i++){
+      var d = document.createElement('div');
+      d.className = 'cell';
+      d.textContent = i;
+      d.dataset.n = i;
+      frag.appendChild(d);
+    }
+    el.innerHTML = '';
+    el.appendChild(frag);
+  }
+  function paint(el, low, high, mid, hit){
+    var cells = el.children;
+    for(var i=0;i<cells.length;i++){
+      var n = i+1, c = cells[i];
+      c.className = 'cell' + (n<low||n>high ? ' gone' : '');
+      if(hit && n===hit) c.className = 'cell hit';
+      else if(mid && n===mid && n>=low && n<=high) c.className = 'cell mid';
+    }
+  }
+
+  /* ── 모드 1 · 범위 추적기 ── */
+  var f0=document.getElementById('field0');
+  var s0={low:1,high:N,count:0,pending:null,done:false};
+  buildField(f0);
+
+  function render0(){
+    document.getElementById('range0').textContent = s0.done ? '찾음' : s0.low+' ~ '+s0.high;
+    document.getElementById('left0').textContent = s0.done ? 0 : (s0.high-s0.low+1);
+    document.getElementById('count0').textContent = s0.count;
+    paint(f0, s0.low, s0.high, s0.pending, s0.done ? s0.pending : null);
+    ['up0','dn0','ok0'].forEach(function(id){
+      document.getElementById(id).disabled = (s0.pending===null || s0.done);
+    });
+    document.getElementById('ask0').disabled = s0.done;
+  }
+  function say0(html, win){
+    var m=document.getElementById('msg0');
+    m.innerHTML = html; m.className = 'msg' + (win?' win':'');
+  }
+  function log0(text){
+    var li=document.createElement('li');
+    li.innerHTML = '<span>'+s0.count+'</span><b>'+s0.pending+'</b>'+text;
+    document.getElementById('log0').prepend(li);
+  }
+  document.getElementById('mid0').addEventListener('click', function(){
+    if(s0.done) return;
+    document.getElementById('guess0').value = Math.floor((s0.low+s0.high)/2);
+  });
+  document.getElementById('ask0').addEventListener('click', function(){
+    var v = parseInt(document.getElementById('guess0').value,10);
+    if(isNaN(v)){ say0('숫자를 먼저 입력하세요.'); return; }
+    if(v<s0.low || v>s0.high){
+      say0('<strong>'+v+'</strong>은 이미 지워진 범위입니다. 남은 범위는 '+s0.low+' ~ '+s0.high+' 입니다.');
+      return;
+    }
+    s0.pending=v; s0.count++;
+    say0('<strong>'+v+'</strong>을 불렀습니다. 학생의 대답을 누르세요.');
+    render0();
+  });
+  document.getElementById('up0').addEventListener('click', function(){
+    log0('보다 크다 → '+(s0.pending+1)+' ~ '+s0.high);
+    s0.low = s0.pending+1; s0.pending=null; render0();
+    say0('남은 후보가 <strong>'+(s0.high-s0.low+1)+'개</strong>로 줄었습니다.');
+  });
+  document.getElementById('dn0').addEventListener('click', function(){
+    log0('보다 작다 → '+s0.low+' ~ '+(s0.pending-1));
+    s0.high = s0.pending-1; s0.pending=null; render0();
+    say0('남은 후보가 <strong>'+(s0.high-s0.low+1)+'개</strong>로 줄었습니다.');
+  });
+  document.getElementById('ok0').addEventListener('click', function(){
+    log0(' 정답');
+    s0.done=true; render0();
+    say0('<strong>'+s0.count+'번</strong> 만에 찾았습니다. 가운데만 불렀다면 최악의 경우에도 7번이면 끝납니다.', true);
+  });
+  document.getElementById('rs0').addEventListener('click', function(){
+    s0={low:1,high:N,count:0,pending:null,done:false};
+    document.getElementById('log0').innerHTML='';
+    document.getElementById('guess0').value='';
+    say0('숫자를 입력하고 <strong>이 숫자를 불렀다</strong>를 누르세요.');
+    render0();
+  });
+  render0();
+
+  /* ── 모드 2 · 혼자 연습 ── */
+  var f1=document.getElementById('field1');
+  var s1={low:1,high:N,count:0,secret:0,done:false};
+  buildField(f1);
+
+  var BEST_KEY='w3-binary-best';
+  function loadBest(){
+    try{ var v=localStorage.getItem(BEST_KEY); return v?parseInt(v,10):null; }
+    catch(e){ return null; }
+  }
+  function saveBest(v){ try{ localStorage.setItem(BEST_KEY,String(v)); }catch(e){} }
+  function showBest(){
+    var b=loadBest();
+    document.getElementById('best1').textContent = b===null ? '—' : b+'회';
+  }
+  function newGame1(){
+    s1={low:1,high:N,count:0,secret:1+Math.floor(Math.random()*N),done:false};
+    document.getElementById('log1').innerHTML='';
+    document.getElementById('guess1').value='';
+    document.getElementById('msg1').className='msg';
+    document.getElementById('msg1').innerHTML='숫자를 입력하고 <strong>부르기</strong>를 누르세요.';
+    render1();
+  }
+  function render1(){
+    document.getElementById('range1').textContent = s1.done ? '찾음' : s1.low+' ~ '+s1.high;
+    document.getElementById('count1').textContent = s1.count;
+    paint(f1, s1.low, s1.high, null, s1.done ? s1.secret : null);
+    document.getElementById('ask1').disabled = s1.done;
+    showBest();
+  }
+  document.getElementById('ask1').addEventListener('click', function(){
+    var v=parseInt(document.getElementById('guess1').value,10);
+    var m=document.getElementById('msg1');
+    if(isNaN(v)||v<1||v>N){ m.className='msg'; m.innerHTML='1부터 100 사이의 숫자를 입력하세요.'; return; }
+    s1.count++;
+    var li=document.createElement('li'), verdict;
+    if(v===s1.secret){
+      s1.done=true; verdict=' 정답';
+      var b=loadBest();
+      if(b===null || s1.count<b) saveBest(s1.count);
+      m.className='msg win';
+      m.innerHTML='<strong>'+s1.count+'번</strong> 만에 찾았습니다. 가운데만 불렀다면 최악의 경우 7번입니다.';
+    } else if(v < s1.secret){
+      verdict=' 보다 크다'; if(v>=s1.low) s1.low=v+1;
+      m.className='msg'; m.innerHTML='더 <strong>큰</strong> 숫자입니다.';
+    } else {
+      verdict=' 보다 작다'; if(v<=s1.high) s1.high=v-1;
+      m.className='msg'; m.innerHTML='더 <strong>작은</strong> 숫자입니다.';
+    }
+    li.innerHTML='<span>'+s1.count+'</span><b>'+v+'</b>'+verdict;
+    document.getElementById('log1').prepend(li);
+    document.getElementById('guess1').value='';
+    document.getElementById('guess1').focus();
+    render1();
+  });
+  document.getElementById('guess1').addEventListener('keydown', function(e){
+    if(e.key==='Enter') document.getElementById('ask1').click();
+  });
+  document.getElementById('guess0').addEventListener('keydown', function(e){
+    if(e.key==='Enter') document.getElementById('ask0').click();
+  });
+  document.getElementById('rs1').addEventListener('click', newGame1);
+  newGame1();
+
+  /* ── 모드 3 · 범위 비교 ── */
+  var SIZES=[100,1000,10000,100000,1000000];
+  function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  var bars=document.getElementById('bars');
+  SIZES.forEach(function(n){
+    var seq=n, bin=Math.ceil(Math.log(n+1)/Math.log(2));
+    var seqW=100;
+    var binW=Math.max(1.5, bin/seq*100);
+    var row=document.createElement('div');
+    row.className='bar-row';
+    row.innerHTML=
+      '<div class="bar-head"><span>1 ~ '+fmt(n)+'</span><em>순차 '+fmt(seq)+'회 · 이진 '+bin+'회</em></div>'+
+      '<div class="track"><div class="fill seq" style="width:0%"></div></div>'+
+      '<div class="track"><div class="fill bin" style="width:0%"></div></div>';
+    bars.appendChild(row);
+    requestAnimationFrame(function(){
+      row.querySelector('.fill.seq').style.width=seqW+'%';
+      row.querySelector('.fill.bin').style.width=binW+'%';
+    });
+  });
+
+  var halves=document.getElementById('halves'), cur=100, step=0;
+  while(cur>1 && step<10){
+    step++; cur=Math.ceil(cur/2);
+    var li=document.createElement('li');
+    li.innerHTML='<span>'+step+'</span><b>'+cur+'개</b>남음';
+    halves.appendChild(li);
+  }
+})();
+</script>
+</body>
+</html>
